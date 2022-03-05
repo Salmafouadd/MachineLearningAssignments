@@ -1,1 +1,115 @@
+import numpy as np, pandas as pd, seaborn as sns, matplotlib.pyplot as plt
+from sklearn.datasets import make_blobs
+from sklearn.datasets import make_moons
+from sklearn.cluster import KMeans
+
+Kmeans = pd.read_csv("Customer data.csv")
+[row,col] = np.shape(Kmeans)
+Kmeans_n=Kmeans.iloc[:,1:col]
+Customer_Data=pd.DataFrame(Kmeans_n).to_numpy()
+k=5
+wcss_list=[]
+y=0
+ 
+for i in range(1, 11):  
+    kmeans_n1 = KMeans(n_clusters=i)  
+    kmeans_n1.fit(Customer_Data)  
+    wcss_list.append(kmeans_n1.inertia_) 
+    
+plt.figure()
+plt.plot(range(1, 11), wcss_list)  
+plt.title('The Elobw Method Graph')  
+plt.xlabel('Number of Clusters(k)')  
+plt.ylabel('wcss_list')  
+plt.show()
+
+Centroids=np.zeros([row,col])
+RandCentroids=Customer_Data[np.random.choice(row,k,replace=False)]
+
+
+def GUC_Distance ( RandCentroids, Data_points, Distance_Type ):
+    Eucledian_distance=np.zeros([row,k])
+    Customers_avg=np.zeros([row,1])
+    Centers_avg=np.zeros([k,1])
+    CustomerData_new=np.zeros([row,1])
+    Centroids_new=np.zeros([k,1])
+    Centroids_after=np.zeros([k,col-1])
+    CustomerData_after=np.zeros([row,col-1]) 
+    num=np.zeros([row,k])
+    denom=np.zeros([row,k])
+    if Distance_Type=='Eucledian distance':
+        for i in range(k):    
+            Eucledian_distance[:,i] = ((Customer_Data-RandCentroids[i])**2).sum(axis=1)
+            Cluster_Distance=Eucledian_distance
+    else:
+        Customers_avg=np.average(Customer_Data,axis=1)
+        Centers_avg=np.average(RandCentroids,axis=1)
+        
+        for a in range(row):
+           CustomerData_after[a]=Customer_Data[a]-Customers_avg[a] 
+        for b in range(k):
+           Centroids_after[b]=RandCentroids[b]-Centers_avg[b]
+        for c in range(row):
+           CustomerData_new[c]=((Customer_Data[c]-Customers_avg[c])**2).sum()
+        for d in range(k):
+           Centroids_new[d]=((RandCentroids[d]-Centers_avg[d])**2).sum()
+        for e in range(k):
+           for f in range(row): 
+               num[f,e]=(CustomerData_after[f]* Centroids_after[e]).sum()
+               denom[f]=np.sqrt(CustomerData_new[f]*Centroids_new[e])
+        Cluster_Distance=1-(num/denom)
+    return Cluster_Distance
+
+
+def GUC_Kmean ( Customer_Data, k, Distance_Type ):
+    users=np.zeros(k)
+    Clusters_sum=np.zeros([k,col-1])
+    centers=np.zeros([k,col-1])
+    Distance_temp=-1
+    Dis=0
+    
+    for a in range(100):
+        RandCentroids=Customer_Data[np.random.choice(row,k,replace=False)]
+        while True:
+            Distance=GUC_Distance ( RandCentroids, Customer_Data, 'Eucledian distance' )
+            Index_min=np.argmin(Distance,axis=1)
+            Dis_min=np.min(Distance,axis=1)
+            Final_Cluster_Distance=Dis_min
+            
+            for y in range(k):
+                for x in range(row):
+                    if Index_min[x]==y:
+                        Dis=Dis+((((Customer_Data[x]-RandCentroids[y])**2)).sum())
+                        users[y]=users[y]+1
+                        Clusters_sum[y]= Clusters_sum[y]+Customer_Data[x]
+                centers[y]= Clusters_sum[y]/users[y]
+            Dis=Dis/row
+            
+            if Dis==Distance_temp:
+                break
+            else:
+                Distance_temp=Dis
+            if a==0:
+                min_dis=Dis
+            if Dis<min_dis:
+                min_dis=Dis
+            RandCentroids=centers
+            
+            return [Final_Cluster_Distance, min_dis, Index_min ]
+            
+resultfinal=GUC_Kmean ( Customer_Data, k, 'Eucledian distance')
+
+
+(Euc,cost,m)=GUC_Kmean(Customer_Data, k, 'Eucledian distance')
+df = pd.DataFrame(dict(x=Customer_Data[:,2], y=Customer_Data[:,4], label=m.astype(int)))
+colors = {0:'blue', 1:'orange', 2:'green',3:'red',4:'olive',5:'yellow',6:'pink'}
+fig, ax = plt.subplots(figsize=(8, 8))
+grouped = df.groupby('label')
+for key, group in grouped:
+    group.plot(ax=ax, kind='scatter', x='x', y='y', label=key, color=colors[key])
+ax.scatter(RandCentroids[:, 2],RandCentroids[:, 4], marker='*', s=300, c='#ff2222')
+plt.xlabel('feature_1')
+plt.ylabel('feature_2')
+plt.show()
+
 
